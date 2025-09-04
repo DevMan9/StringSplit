@@ -1,13 +1,11 @@
 CC = gcc
-FLAGS = -Wall
+FLAGS = -Wall -Icontracts
 
 .PHONY: clean test default run_test
 
-default:
-	@echo "Please specify a target."
-
 run_test: test
 	./executable/test
+	$(MAKE) clean
 
 test: executable/test
 

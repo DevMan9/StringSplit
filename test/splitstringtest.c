@@ -3,82 +3,120 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../source/splitstring.x"
+#include "StringSplit-StandardContract/splitstring.x"
+
+__attribute__((unused)) static void PrintStrings(char **strings)
+{
+    printf("{");
+    for (char **string = strings; *string != NULL; string++)
+    {
+        printf("\"%s\"", *string);
+        if (*(string + 1) != NULL)
+        {
+            printf(", ");
+        }
+    }
+    printf("}\n");
+}
+
+static void _CountStrings(char **strings, size_t *ret)
+{
+    size_t count = 0;
+    for (char **string = strings; *string != NULL; string++)
+    {
+        count++;
+    }
+    (*ret) = count;
+}
+
+int Test(char **output, char **expected)
+{
+    size_t output_count = 0;
+    size_t expected_count = 0;
+    _CountStrings(output, &output_count);
+    _CountStrings(expected, &expected_count);
+    if (output_count != expected_count)
+    {
+        return 0;
+    }
+
+    for (size_t i = 0; i < output_count; i++)
+    {
+        if (strcmp(output[i], expected[i]) != 0)
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
 
 int main()
 {
-    char test_string1[] = "There once was an ugly barnacle. He was so ugly that everyone died. The End.";
-    char test_delimiter1[] = " ";
-    char *expected[] = {"There", "once", "was", "an", "ugly", "barnacle.", "He", "was", "so", "ugly", "that", "everyone", "died.", "The", "End."};
+    char *string_1 = "This.astring.abhas.abcmultiple.adelimiters.";
+    char *delimiters_1[] = {".a", ".ab", ".abc", NULL};
 
-    printf("Splitting string.\n");
-    char **splits = NULL;
-    size_t count = 0;
-    SplitString(test_string1, test_delimiter1, &splits, &count);
+    char **tokens = NULL;
+    size_t token_count;
+    SplitString(string_1, delimiters_1, NONE, &tokens, &token_count);
+    char *expected_1_1[] = {"This", "string", "bhas", "bcmultiple", "delimiters.", NULL};
+    assert(Test(tokens, expected_1_1));
+    assert(token_count == 5);
+    DestroyReturnTokens(&tokens);
 
-    printf("Testing count.\n");
-    assert(count == 15);
+    SplitString(string_1, delimiters_1, LONGEST_FIRST, &tokens, &token_count);
+    char *expected_1_2[] = {"This", "string", "has", "multiple", "delimiters.", NULL};
+    assert(Test(tokens, expected_1_2));
+    assert(token_count == 5);
+    DestroyReturnTokens(&tokens);
 
-    printf("Testing splits.\n");
-    size_t index = 0;
-    for (char **word = splits; *word != NULL; word++, index++)
-    {
-        assert(strcmp(*word, expected[index]) == 0);
-        free(*word);
-    }
+    char *string_2 = "This string  is    testing the    filter  feature.    ";
+    char *delimiters_2[] = {" ", NULL};
+    SplitString(string_2, delimiters_2, NONE, &tokens, &token_count);
+    char *expected_2_1[] = {"This", "string", "", "is", "", "", "", "testing", "the", "", "", "", "filter", "", "feature.", "", "", "", "", NULL};
+    assert(Test(tokens, expected_2_1));
+    assert(token_count == 19);
+    DestroyReturnTokens(&tokens);
 
-    printf("Testing index.\n");
-    assert(index == 15);
-    free(splits);
+    SplitString(string_2, delimiters_2, FILTER_EMPTIES, &tokens, &token_count);
+    char *expected_2_2[] = {"This", "string", "is", "testing", "the", "filter", "feature.", NULL};
+    assert(Test(tokens, expected_2_2));
+    assert(token_count == 7);
+    DestroyReturnTokens(&tokens);
 
-    printf("No delimiter in string test.\n");
-    char test_delimiter2[] = "qqq";
-    SplitString(test_string1, test_delimiter2, &splits, &count);
-    assert(count == 1);
-    assert(strcmp(splits[0], test_string1) == 0);
-    assert(splits[1] == NULL);
-    free(splits[0]);
-    free(splits);
+    char *string_3 = "This string   \t is \n\n tasked  \t\n\t with   \t\t removing \n\n\n ALL    \t  this whitespace.";
+    char *delimiters_3[] = {" ", "\t", "\n", NULL};
+    SplitString(string_3, delimiters_3, NONE, &tokens, NULL);
+    char *expected_3_1[] = {"This", "string", "", "", "", "", "is", "", "", "", "tasked", "", "", "", "", "", "with", "", "", "", "", "", "removing", "", "", "", "", "ALL", "", "", "", "", "", "", "this", "whitespace.", NULL};
+    assert(Test(tokens, expected_3_1));
+    DestroyReturnTokens(&tokens);
 
-    printf("string == delimiter test.\n");
-    char test_string2[] = "cat";
-    char test_delimiter3[] = "cat";
-    SplitString(test_string2, test_delimiter3, &splits, &count);
-    assert(count == 2);
-    assert(strcmp(splits[0], "") == 0);
-    assert(strcmp(splits[1], "") == 0);
-    for (char **word = splits; *word != NULL; word++)
-    {
-        free(*word);
-    }
-    free(splits);
+    SplitString(string_3, delimiters_3, FILTER_EMPTIES, &tokens, NULL);
+    char *expected_3_2[] = {"This", "string", "is", "tasked", "with", "removing", "ALL", "this", "whitespace.", NULL};
+    assert(Test(tokens, expected_3_2));
+    DestroyReturnTokens(&tokens);
 
-    printf("Empty delimiter test.\n");
-    char test_string3[] = "Empty delimiter string";
-    char test_delimiter4[] = "";
-    SplitString(test_string3, test_delimiter4, &splits, &count);
-    assert(count == 1);
-    assert(strcmp(splits[0], test_string3) == 0);
-    free(splits[0]);
-    free(splits);
+    char *string_4 = "";
+    char *delimiters_4[] = {" ", "\t", "\n", NULL};
+    SplitString(string_4, delimiters_4, NONE, &tokens, &token_count);
+    char *expected_4_1[] = {"", NULL};
+    assert(Test(tokens, expected_4_1));
+    assert(token_count == 1);
+    DestroyReturnTokens(&tokens);
 
-    printf("Empty string test.\n");
-    char test_string4[] = "";
-    char test_delimiter5[] = "Empty string";
-    SplitString(test_string4, test_delimiter5, &splits, &count);
-    assert(count == 1);
-    assert(strcmp(splits[0], test_string4) == 0);
-    free(splits[0]);
-    free(splits);
+    SplitString(string_4, delimiters_4, FILTER_EMPTIES, &tokens, &token_count);
+    char *expected_4_2[] = {NULL};
+    assert(Test(tokens, expected_4_2));
+    assert(token_count == 0);
+    DestroyReturnTokens(&tokens);
 
-    printf("Empty empty test.\n");
-    char test_string5[] = "";
-    char test_delimiter6[] = "";
-    SplitString(test_string5, test_delimiter6, &splits, &count);
-    assert(count == 1);
-    assert(strcmp(splits[0], test_string5) == 0);
-    free(splits[0]);
-    free(splits);
+    char *string_5 = "No delimiters.";
+    char *delimiters_5[] = {NULL};
+    SplitString(string_5, delimiters_5, NONE, &tokens, &token_count);
+    char *expected_5_1[] = {"No delimiters.", NULL};
+    assert(Test(tokens, expected_5_1));
+    assert(token_count == 1);
+    DestroyReturnTokens(&tokens);
 
     printf("All tests passed!.\n");
     return 0;
